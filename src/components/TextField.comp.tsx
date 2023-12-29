@@ -1,14 +1,21 @@
 
-import React, { ChangeEvent, useMemo } from 'react';
+import React, { ChangeEvent, useEffect, useMemo } from 'react';
 
+
+type Validator = {
+  validator: (value: string) => boolean;
+  message: string;
+};
 interface TextFieldProps {
   id?: string;
-  value: string | null;
+  value: string;
   placeholder?: string;
-  required?: boolean;
-  onChange: (value: string) => void;
+  validator?: Validator[];
+  labelText?: string;
+  disabled?: boolean;
+  onChange: (value: any) => void;
   onBlur?: () => void;
-  onValidate?: (value: any) => boolean;
+  onValidate?: (value: any) => any;
 }
 
 enum EInputState {
@@ -20,45 +27,78 @@ enum EInputState {
 
 const TextField: React.FC<TextFieldProps> = (
   { id = '',
-    value,
+    value = '',
     placeholder,
-    required = false,
+    labelText = '',
+    disabled = false,
+    validator = [],
     onChange,
-    onBlur,
     onValidate }
 ) => {
 
   const [inputState, setInputState] = React.useState<EInputState>(EInputState.STARTED);
+  const [supportText, setSupportText] = React.useState<string>('');
+  const [touched, setTouched] = React.useState<boolean>(false);
+
+  useEffect(() => {
+    if (disabled) {
+      setInputState(EInputState.IDLE);
+    }
+  }, [disabled])
+
 
   const handleInputChange = (event: ChangeEvent<HTMLInputElement>) => {
     const currentValue = event.target.value;
-    onChange(currentValue);
+    onChange({
+      id: id,
+      value: currentValue,
+    });
     if (currentValue === '') {
       setInputState(EInputState.STARTED);
     } else {
       setInputState(EInputState.IDLE);
-      handleValidate(currentValue);
     }
+  };
 
+  const validateInput = (value: string, validators: Validator[]) => {
+    for (const { validator, message } of validators) {
+      if (!validator(value)) {
+        return {
+          valid: false,
+          message,
+        };
+      }
+    }
+    return {
+      valid: true,
+      message: '',
+    };
   };
 
   const handleValidate = (val: string) => {
-    if (onValidate && onValidate(val)) {
-      setInputState(EInputState.VALID);
-    } else {
-      setInputState(EInputState.INVALID);
+    if (touched) {
+      const validCheck = validateInput(val, validator);
+      if (validCheck.valid) {
+        setInputState(EInputState.VALID);
+        setSupportText(validCheck.message);
+        onValidate && onValidate({ id: id, value: true });
+      } else {
+        setInputState(EInputState.INVALID);
+        setSupportText(validCheck.message);
+        onValidate && onValidate({ id: id, value: false });
+      }
     }
   }
 
   const renderLabelText = useMemo(() => {
     if (inputState === EInputState.IDLE || inputState === EInputState.STARTED) {
-      return <label htmlFor="username-error" className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-500">Your name</label>;
+      return <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-500">{labelText}</label>;
     }
     if (inputState === EInputState.VALID) {
-      return <label htmlFor="username-error" className="block mb-2 text-sm font-medium text-green-700 dark:text-green-500">Your name</label>;
+      return <label className="block mb-2 text-sm font-medium text-green-700 dark:text-green-500">{labelText}</label>;
     }
     if (inputState === EInputState.INVALID) {
-      return <label htmlFor="username-error" className="block mb-2 text-sm font-medium text-red-700 dark:text-red-500">Your name</label>;
+      return <label className="block mb-2 text-sm font-medium text-red-700 dark:text-red-500">{labelText}</label>;
     }
   }, [inputState]);
 
@@ -67,10 +107,10 @@ const TextField: React.FC<TextFieldProps> = (
       return null;
     }
     if (inputState === EInputState.VALID) {
-      return <p className="mt-2 text-sm text-green-600 dark:text-green-500"><span className="font-medium">Nice!</span> Username available!</p>;
+      return <p className="mt-2 text-sm text-green-600 dark:text-green-500">{supportText}</p>;
     }
     if (inputState === EInputState.INVALID) {
-      return <p className="mt-2 text-sm text-red-600 dark:text-red-500"><span className="font-medium">Oops!</span> Username already taken!</p>;
+      return <p className="mt-2 text-sm text-red-600 dark:text-red-500">{supportText}</p>;
     }
   }, [inputState]);
 
@@ -90,11 +130,18 @@ const TextField: React.FC<TextFieldProps> = (
     <div className="flex flex-col mb-4">
       {renderLabelText}
       <input
-        id={`input-text-error-${id}`}
+        value={value}
+        id={`field-${id}`}
         type="text"
-        value={value || ''}
+        disabled={disabled}
         onChange={handleInputChange}
-        className={renderCssClassInput}
+        className={`${renderCssClassInput} disabled:cursor-not-allowed disabled:bg-gray-300 disabled:opacity-50`}
+        onBlur={(e) => {
+          handleValidate(e.target.value);
+        }}
+        onFocus={() => {
+          setTouched(true)
+        }}
         placeholder={placeholder} />
       {renderSupportText}
     </div>
