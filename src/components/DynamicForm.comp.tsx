@@ -2,11 +2,13 @@
 import { forwardRef, useImperativeHandle, useMemo, useRef, useState } from 'react'
 import TextField from "./TextField.comp"
 import SelectionField from "./SelectionField.comp";
+import { useDebounce } from "../utils/helper";
 
 enum EFieldComponent {
   TEXT,
   SELECTION,
   CHECK_BOX,
+  CUSTOM
 }
 
 export type Validator = {
@@ -19,6 +21,7 @@ export const parseStrToEnumFieldComp = (comType: string): EFieldComponent => {
     'TEXT': EFieldComponent.TEXT,
     'SELECTION': EFieldComponent.SELECTION,
     'CHECK_BOX': EFieldComponent.CHECK_BOX,
+    'CUSTOM': EFieldComponent.CUSTOM,
   }[comType] ?? EFieldComponent.TEXT;
 };
 
@@ -55,7 +58,6 @@ const DynamicForm = forwardRef((
   }: IDynamicFormProps, ref) => {
 
   const formRef = useRef<HTMLFormElement>(null);
-
   const defaultFormData = Object.keys(config).reduce((obj, key) => ({ ...obj, [key]: '' }), {});
   const defaultFormDataValidation = Object.keys(config).reduce((obj, key) => ({ ...obj, [key]: false }), {});
   const [formJson, setFormJson] = useState({ ...config });
@@ -140,6 +142,11 @@ const DynamicForm = forwardRef((
             />
           );
           break;
+        case EFieldComponent.CUSTOM:
+          fields.push(<div key={key}>
+            {value.parts || null}
+          </div>);
+          break;
         default:
           break;
       }
@@ -149,6 +156,8 @@ const DynamicForm = forwardRef((
 
   const isValidation = useMemo(() => formDataValidation && Object.values(formDataValidation).every(val => val), [formDataValidation]);
 
+  const emitAction = useDebounce(controller, 500);
+
   return (
     <form ref={formRef}
       onSubmit={(e) => {
@@ -156,9 +165,7 @@ const DynamicForm = forwardRef((
         onFormSubmitted({
           formRef, formData, formDataValidation
         });
-      }} onChange={(e: React.FormEvent<HTMLFormElement>) => {
-        controller(e);
-      }}>
+      }} onChange={emitAction}>
       {renderInputField}
       <div className="flex mt-4 w-full">
         <button disabled={!isValidation} type="submit" className="bg-blue-500  text-white font-bold py-2 px-4 rounded w-full disabled:cursor-not-allowed disabled:bg-gray-300 disabled:opacity-70">

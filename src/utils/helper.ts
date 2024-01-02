@@ -1,8 +1,6 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/ban-types */
-// make a debounce function on typescript
-export const debounce = (func: Function, wait: number) => {
-  let timeout: ReturnType<typeof setTimeout>;
+let timeout: ReturnType<typeof setTimeout>;
+// eslint-disable-next-line @typescript-eslint/ban-types
+export const useDebounce = (func: Function, wait: number) => {
   return (...args: any) => {
     clearTimeout(timeout);
     timeout = setTimeout(() => {
